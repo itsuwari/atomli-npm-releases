@@ -1,0 +1,90 @@
+name: Publish prebuilt npm package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: GitHub release tag
+        required: true
+        type: string
+      publish:
+        description: Publish after validation
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: atomli-npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Set up npm
+        run: npm install --global npm@12.2.2 --ignore-scripts --no-audit --no-fund
+
+      - name: Download the local build
+        run: |
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'atomli-tako-*.tgz' \
+            --dir incoming
+
+      - name: Check package identity and version
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { appendFileSync, readdirSync } from 'node:fs';
+          const files = readdirSync('incoming').filter(name => name.endsWith('.tgz'));
+          if (files.length !== 1) throw new Error('The release must contain one npm tarball.');
+          const archive = `incoming/${files[0]}`;
+          const metadata = JSON.parse(execFileSync('tar', ['-xOf', archive, 'package/package.json'], {
+            encoding: 'utf8', timeout: 10000,
+          }));
+          if (metadata.name !== '@atomli/tako' || typeof metadata.version !== 'string'
+            || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(metadata.version)
+            || process.env.RELEASE_TAG !== `tako-v${metadata.version}`
+            || files[0] !== `atomli-tako-${metadata.version}.tgz`) {
+            throw new Error('The npm package and GitHub release do not match.');
+          }
+          appendFileSync(process.env.GITHUB_ENV, `PACKAGE_FILE=${archive}\nNPM_DIST_TAG=${metadata.version.includes('-') ? 'next' : 'latest'}\n`);
+          NODE
+
+      - name: Publish the tarball
+        if: github.event_name == 'release' || inputs.publish
+        env:
+          NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
+        run: |
+          if [ -n "$NPM_BOOTSTRAP_TOKEN" ]; then
+            export NPM_CONFIG_USERCONFIG="$RUNNER_TEMP/npm-bootstrap.rc"
+            umask 077
+            printf '%s\n' '//registry.npmjs.org/:_authToken=${NPM_BOOTSTRAP_TOKEN}' > "$NPM_CONFIG_USERCONFIG"
+            trap 'rm -f "$NPM_CONFIG_USERCONFIG"' EXIT
+            npm access list packages @atomli --json > "$RUNNER_TEMP/npm-packages.json"
+            node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const packages = JSON.parse(readFileSync(`${process.env.RUNNER_TEMP}/npm-packages.json`, 'utf8'));
+          if (!Object.hasOwn(packages, '@atomli/tako') && Object.keys(packages).some(name => name.startsWith('@atomli/'))) {
+            throw new Error('Remove the old @atomli packages before the first publication.');
+          }
+          NODE
+          fi
+          npm publish "$PACKAGE_FILE" --access public --tag "$NPM_DIST_TAG" \
+            --ignore-scripts --provenance=false

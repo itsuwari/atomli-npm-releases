@@ -12,10 +12,17 @@ The package repository field points here to meet npm trusted publishing requirem
 
 The target runtime packages are `@atomli/tb` and `@atomli/mlip`.
 Each package contains locally built CPU and GPU adapters, generated glue, and engine metadata.
-Model checkpoints remain separate from engine packages.
-Equiformer weights stay outside npm.
-The widget catalog can provide GitHub release download links for explicit checkpoint loading.
+The MLIP package will include selected small Nequix and NequIP-S checkpoints.
+NequIP-L and Equiformer weights stay outside npm.
+Use the existing public model release in `atomag/atomli-assets`, tag `mlip-models`.
+The widget catalog will provide its download links for explicit checkpoint loading.
 Direct browser loading also requires compatible CORS responses.
+Keep a download link and local file selection available when direct browser fetching fails.
+
+First-party packages use PolyForm Strict 1.0.0 with the Atomli Additional Commercial Grant and Exceptions.
+Each npm tarball must include `LICENSE` and separate dependency notices.
+Model weights retain their upstream licenses, whether bundled or externally downloaded.
+The Atomli exceptions do not remove the base restrictions on modification and redistribution.
 
 The current uploader and workflow publish only `@atomli/tako`.
 TB and MLIP package integration remains pending.
@@ -59,6 +66,7 @@ Attach `atomli-tako-VERSION.tgz` to a release with tag `tako-vVERSION`.
 Publish a GitHub release with a `tako-v` tag to start the upload job.
 
 The workflow checks the package name, version, filename, and release tag.
+It also checks the license field and requires the license and dependency notice files.
 It does not compute transfer checksums.
 `workflow_dispatch` validates a release without publishing by default.
 Set its `publish` input to `true` to retry npm publication.

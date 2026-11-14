@@ -62,11 +62,18 @@ jobs:
           }));
           if (metadata.name !== '@atomli/tako'
             || metadata.repository?.url !== `git+https://github.com/${process.env.GITHUB_REPOSITORY}.git`
+            || metadata.license !== 'SEE LICENSE IN LICENSE'
             || typeof metadata.version !== 'string'
             || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(metadata.version)
             || process.env.RELEASE_TAG !== `tako-v${metadata.version}`
             || files[0] !== `atomli-tako-${metadata.version}.tgz`) {
             throw new Error('The npm package and GitHub release do not match.');
+          }
+          for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES']) {
+            const text = execFileSync('tar', ['-xOf', archive, `package/${name}`], {
+              encoding: 'utf8', timeout: 10000,
+            });
+            if (!text.trim()) throw new Error(`The package must include ${name}.`);
           }
           appendFileSync(process.env.GITHUB_ENV, `PACKAGE_FILE=${archive}\nNPM_DIST_TAG=${metadata.version.includes('-') ? 'next' : 'latest'}\n`);
           NODE

@@ -59,7 +59,9 @@ jobs:
           const metadata = JSON.parse(execFileSync('tar', ['-xOf', archive, 'package/package.json'], {
             encoding: 'utf8', timeout: 10000,
           }));
-          if (metadata.name !== '@atomli/tako' || typeof metadata.version !== 'string'
+          if (metadata.name !== '@atomli/tako'
+            || metadata.repository?.url !== `git+https://github.com/${process.env.GITHUB_REPOSITORY}.git`
+            || typeof metadata.version !== 'string'
             || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(metadata.version)
             || process.env.RELEASE_TAG !== `tako-v${metadata.version}`
             || files[0] !== `atomli-tako-${metadata.version}.tgz`) {

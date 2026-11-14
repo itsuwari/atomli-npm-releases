@@ -6,6 +6,7 @@ The job does not compile source or install application dependencies.
 
 The Tako source repository is private.
 This public repository contains the delivery workflow and public npm tarballs.
+The package repository field points here to meet npm trusted publishing requirements.
 
 ## Authentication
 
@@ -31,6 +32,7 @@ npm trust github @atomli/tako \
 
 The first package publication can use the temporary `NPM_BOOTSTRAP_TOKEN` repository secret.
 Remove this secret after trusted publishing is configured.
+Publish the next package version through OIDC within two days to activate the configuration.
 Later publications use GitHub OIDC.
 Do not configure environment reviewers or staged-publication approval for this workflow.
 

@@ -26,7 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: read
+      # Draft release downloads require write access.
+      contents: write
       id-token: write
     env:
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
